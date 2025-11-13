@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>解方程挑戰</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 使用 Inter 字體 */
+        body {
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+        }
+        /* 確保按鈕有清晰的點擊反饋 */
+        .btn {
+            @apply font-bold py-3 px-6 rounded-lg transition-all duration-150 transform active:scale-95 shadow-md;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+
+    <div id="app" class="w-full max-w-lg bg-white rounded-2xl shadow-xl p-8 m-4 text-center">
+
+        <!-- 畫面 1: 程度選擇 -->
+        <div id="levelSelectScreen">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">解方程挑戰</h1>
+            <p class="text-gray-600 mb-8">請選擇一個難度等級開始：</p>
+            <div class="flex flex-col space-y-4">
+                <button id="level1Btn" class="btn bg-blue-500 hover:bg-blue-600 text-white">
+                    程度一 (兩步解方程)
+                </button>
+                <button id="level2Btn" class="btn bg-green-500 hover:bg-green-600 text-white">
+                    程度二 (三步解方程)
+                </button>
+                <button id="level3Btn" class="btn bg-yellow-500 hover:bg-yellow-600 text-gray-800">
+                    程度三 (四步解方程)
+                </button>
+            </div>
+        </div>
+
+        <!-- 畫面 2: 遊戲畫面 -->
+        <div id="gameScreen" class="hidden">
+            <div class="flex justify-between items-center mb-4">
+                <button id="backToMenuBtn" class="text-sm text-blue-500 hover:underline">&larr; 返回選單</button>
+                <div id="scoreDisplay" class="text-2xl font-bold text-indigo-600">分數: 0</div>
+            </div>
+
+            <p id="solvePrompt" class="text-gray-600 mb-4">Please solve for x:</p>
+            <div id="questionDisplay" class="text-3xl font-mono bg-gray-100 p-8 rounded-lg my-6 text-gray-800 min-h-[100px] flex items-center justify-center">
+                <!-- 題目會顯示在這裡 -->
+            </div>
+
+            <form id="answerForm">
+                <input type="number" id="answerInput" class="w-full p-3 border border-gray-300 rounded-lg text-center text-xl shadow-inner" placeholder="輸入你的答案..." required>
+                <button type="submit" class="btn bg-green-500 hover:bg-green-600 text-white w-full mt-4">
+                    提交答案
+                </button>
+            </form>
+
+            <button id="hintButton" class="btn bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full mt-2">
+                索取提示 (扣 1 分)
+            </button>
+
+            <div id="hintArea" class="mt-4 text-left bg-gray-50 p-4 rounded-lg min-h-[50px] text-gray-700 text-sm">
+                <!-- 提示會顯示在這裡 -->
+            </div>
+            
+            <div id="messageArea" class="mt-4 text-lg font-bold min-h-[30px]">
+                <!-- "正確" 或 "錯誤" 訊息 -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 畫面 3: 遊戲完成彈窗 -->
+    <div id="winModal" class="fixed inset-0 bg-black/60 flex items-center justify-center p-4 hidden">
+        <div class="bg-white p-10 rounded-2xl shadow-2xl text-center max-w-sm w-full">
+            <h2 class="text-3xl font-bold text-green-600 mb-4">恭喜！</h2>
+            <p class="text-gray-700 text-lg mb-8">您已達到 50 分！<br>接下來您想？</p>
+            <div class="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0">
+                <button id="gameCompleteButton" class="btn bg-blue-500 hover:bg-blue-600 text-white w-full">
+                    遊戲完成
+                </button>
+                <button id="continueChallengeButton" class="btn bg-gray-700 hover:bg-gray-800 text-white w-full">
+                    繼續挑戰
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- "隨時重新開始" 按鈕 (挑戰模式中顯示) -->
+    <button id="restartButton" class="fixed bottom-6 right-6 btn bg-red-500 hover:bg-red-600 text-white shadow-xl hidden">
+        重新開始
+    </button>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM 元素 ---
+            const levelSelectScreen = document.getElementById('levelSelectScreen');
+            const gameScreen = document.getElementById('gameScreen');
+            const winModal = document.getElementById('winModal');
+
+            const level1Btn = document.getElementById('level1Btn');
+            const level2Btn = document.getElementById('level2Btn');
+            const level3Btn = document.getElementById('level3Btn');
+            const backToMenuBtn = document.getElementById('backToMenuBtn');
+            const restartButton = document.getElementById('restartButton');
+
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            const questionDisplay = document.getElementById('questionDisplay');
+            const solvePrompt = document.getElementById('solvePrompt'); // 取得提示文字元素
+            const answerForm = document.getElementById('answerForm');
+            const answerInput = document.getElementById('answerInput');
+            const hintButton = document.getElementById('hintButton');
+            const hintArea = document.getElementById('hintArea');
+            const messageArea = document.getElementById('messageArea');
+
+            const gameCompleteButton = document.getElementById('gameCompleteButton');
+            const continueChallengeButton = document.getElementById('continueChallengeButton');
+
+            // --- 遊戲狀態 ---
+            let score = 0;
+            let currentLevel = 1;
+            let currentQuestion = {};
+            let hintCost = 1;
+            let hintLevel = 0;
+            let challengeMode = false;
+            let answering = true; // 防止在顯示答案時重複提交
+
+            // --- 變數列表 ---
+            const variables = ['a', 'b', 'c', 'd', 'm', 'n', 'p', 'q', 'x', 'y'];
+
+            // --- 事件監聽 ---
+            level1Btn.addEventListener('click', () => startGame(1));
+            level2Btn.addEventListener('click', () => startGame(2));
+            level3Btn.addEventListener('click', () => startGame(3));
+            backToMenuBtn.addEventListener('click', goToMenu);
+            restartButton.addEventListener('click', goToMenu);
+
+            answerForm.addEventListener('submit', checkAnswer);
+            hintButton.addEventListener('click', getHint);
+
+            gameCompleteButton.addEventListener('click', handleGameComplete);
+            continueChallengeButton.addEventListener('click', handleContinueChallenge);
+
+            // --- 遊戲邏輯 ---
+
+            /** 開始遊戲 */
+            function startGame(level) {
+                currentLevel = level;
+                score = 0;
+                challengeMode = false;
+                updateScore(0);
+
+                levelSelectScreen.classList.add('hidden');
+                gameScreen.classList.remove('hidden');
+                restartButton.classList.add('hidden');
+                winModal.classList.add('hidden');
+
+                generateNewQuestion();
+            }
+
+            /** 返回主選單 (並重設) */
+            function goToMenu() {
+                levelSelectScreen.classList.remove('hidden');
+                gameScreen.classList.add('hidden');
+                winModal.classList.add('hidden');
+                restartButton.classList.add('hidden');
+                score = 0;
+                challengeMode = false;
+            }
+
+            /** 更新分數顯示 */
+            function updateScore(newScore) {
+                score = newScore;
+                scoreDisplay.textContent = `分數: ${score}`;
+            }
+            
+            /** 輔助：格式化正負號 */
+            function formatSign(num) {
+                return num < 0 ? `- ${Math.abs(num)}` : `+ ${num}`;
+            }
+
+            /** 輔助：產生一個隨機整數 (min, max 皆包含) */
+            function getInt(min, max) {
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+            }
+
+            /** 輔助：產生答案 (x)，約 40% 為負數 */
+            function getAnswer() {
+                const isNegative = Math.random() < 0.4;
+                if (isNegative) {
+                    return getInt(-15, -1);
+                } else {
+                    return getInt(1, 20);
+                }
+            }
+            
+            /** 產生新題目 */
+            function generateNewQuestion() {
+                answering = true;
+                hintCost = 1;
+                hintLevel = 0;
+                hintArea.innerHTML = '';
+                messageArea.textContent = '';
+                answerInput.value = '';
+                hintButton.textContent = `索取提示 (扣 ${hintCost} 分)`;
+                hintButton.disabled = false;
+
+                // 隨機選擇一個未知數
+                const variable = variables[Math.floor(Math.random() * variables.length)];
+                solvePrompt.textContent = `Please solve for ${variable}:`; // 更新提示文字
+
+                let q = {};
+                if (currentLevel === 1) {
+                    q = generateLevel1(variable);
+                } else if (currentLevel === 2) {
+                    q = generateLevel2(variable);
+                } else {
+                    q = generateLevel3(variable);
+                }
+                currentQuestion = q;
+                questionDisplay.textContent = currentQuestion.equation;
+                answerInput.focus();
+            }
+
+            /** 程度一: ax + b = c */
+            function generateLevel1(variable) {
+                const x = getAnswer();
+                const a = getInt(2, 9);
+                const b = getInt(1, 25) * (Math.random() < 0.5 ? 1 : -1);
+                const c = a * x + b;
+
+                const equation = `${a}${variable} ${formatSign(b)} = ${c}`;
+                const hints = [
+                    `Step 1: Move ${formatSign(b)} to the other side.`,
+                    `${a}${variable} = ${c} ${formatSign(-b)}`,
+                    `${a}${variable} = ${c - b}`,
+                    `Step 2: Divide both sides by ${a}.`,
+                    `${variable} = ${c - b} / ${a}`,
+                    `${variable} = ${x}`
+                ];
+                return { equation, answer: x, hints };
+            }
+
+            /** 程度二: a(x + b) = c */
+            function generateLevel2(variable) {
+                const x = getAnswer();
+                const a = getInt(2, 9) * (Math.random() < 0.5 ? 1 : -1);
+                const b = getInt(1, 15) * (Math.random() < 0.5 ? 1 : -1);
+                const c = a * (x + b);
+
+                const equation = `${a}(${variable} ${formatSign(b)}) = ${c}`;
+                const step1 = c / a;
+                const hints = [
+                    `Step 1: Divide both sides by ${a}.`,
+                    `${variable} ${formatSign(b)} = ${c} / ${a}`,
+                    `${variable} ${formatSign(b)} = ${step1}`,
+                    `Step 2: Move ${formatSign(b)} to the other side.`,
+                    `${variable} = ${step1} ${formatSign(-b)}`,
+                    `${variable} = ${x}`
+                ];
+                return { equation, answer: x, hints };
+            }
+
+            /** 程度三: a(bx + c) = d */
+            function generateLevel3(variable) {
+                const x = getAnswer();
+                const a = getInt(2, 5) * (Math.random() < 0.5 ? 1 : -1);
+                const b = getInt(2, 5) * (Math.random() < 0.5 ? 1 : -1);
+                const c = getInt(1, 10) * (Math.random() < 0.5 ? 1 : -1);
+                const d = a * (b * x + c);
+
+                const equation = `${a}(${b}${variable} ${formatSign(c)}) = ${d}`;
+                const step1 = d / a; // d/a
+                const step2 = step1 - c; // (d/a) - c
+                const hints = [
+                    `Step 1: Divide both sides by ${a}.`,
+                    `${b}${variable} ${formatSign(c)} = ${d} / ${a}  =>  ... = ${step1}`,
+                    `Step 2: Move ${formatSign(c)} to the other side.`,
+                    `${b}${variable} = ${step1} ${formatSign(-c)}  =>  ... = ${step2}`,
+                    `Step 3: Divide both sides by ${b}.`,
+                    `${variable} = ${step2} / ${b}`,
+                    `${variable} = ${x}`
+                ];
+                return { equation, answer: x, hints };
+            }
+            
+            /** 檢查答案 */
+            function checkAnswer(e) {
+                e.preventDefault();
+                if (!answering) return;
+
+                const userAnswer = parseInt(answerInput.value, 10);
+                
+                if (isNaN(userAnswer)) {
+                    messageArea.textContent = '請輸入一個數字！';
+                    messageArea.className = 'mt-4 text-lg font-bold text-yellow-600';
+                    return;
+                }
+                
+                answering = false;
+                
+                if (userAnswer === currentQuestion.answer) {
+                    messageArea.textContent = '答對了！ +5 分';
+                    messageArea.className = 'mt-4 text-lg font-bold text-green-600';
+                    updateScore(score + 5);
+                } else {
+                    messageArea.textContent = `答錯了... -3 分 (答案是 ${currentQuestion.answer})`;
+                    messageArea.className = 'mt-4 text-lg font-bold text-red-600';
+                    updateScore(score - 3);
+                }
+
+                // 檢查是否達到勝利條件
+                if (score >= 50 && !challengeMode) {
+                    setTimeout(() => {
+                        winModal.classList.remove('hidden');
+                    }, 1500);
+                } else {
+                    // 1.5 秒後產生新題目
+                    setTimeout(generateNewQuestion, 1500);
+                }
+            }
+
+            /** 獲取提示 */
+            function getHint() {
+                if (hintLevel >= currentQuestion.hints.length) {
+                    hintButton.textContent = '沒有更多提示了';
+                    hintButton.disabled = true;
+                    return;
+                }
+
+                // 扣分
+                updateScore(score - hintCost);
+                
+                // 顯示提示
+                const hintText = currentQuestion.hints[hintLevel];
+                hintArea.innerHTML += `<p>Hint ${hintLevel + 1}: ${hintText}</p>`;
+                hintArea.scrollTop = hintArea.scrollHeight; // 自動滾動到底部
+
+                // 準備下一次提示
+                hintCost *= 2;
+                hintLevel++;
+
+                if (hintLevel >= currentQuestion.hints.length) {
+                     hintButton.textContent = '沒有更多提示了';
+                     hintButton.disabled = true;
+                } else {
+                    hintButton.textContent = `索取下一個提示 (扣 ${hintCost} 分)`;
+                }
+
+                // 檢查是否因提示扣分而勝利
+                if (score >= 50 && !challengeMode) {
+                    winModal.classList.remove('hidden');
+                }
+            }
+
+            /** 處理: 遊戲完成 (彈窗) */
+            function handleGameComplete() {
+                goToMenu();
+            }
+
+            /** 處理: 繼續挑戰 (彈窗) */
+            function handleContinueChallenge() {
+                challengeMode = true;
+                winModal.classList.add('hidden');
+                restartButton.classList.remove('hidden');
+                // 產生新題目
+                generateNewQuestion();
+            }
+        });
+    </script>
+
+</body>
+</html>
